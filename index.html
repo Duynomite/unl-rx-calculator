@@ -115,7 +115,7 @@
 
     // ============================================================================
     // DATA — UNL Rx benefit rules + HHC plan tiers
-    // Source: UNL_Crash_Course.html Section 5, UNL_Ancillary_Academy.html RX_TIERS
+    // Source: UNL_Crash_Course.html Section 5, UNL_Master_Class.html Resources panel
     // ============================================================================
     const GENERIC_PER_FILL = 10;
     const BRAND_PER_FILL = 25;
@@ -384,7 +384,7 @@
               <div className="w-7 h-7 rounded-full bg-accent text-deep-navy font-heading font-bold flex items-center justify-center text-sm">2</div>
               <h2 className="font-heading font-bold text-xl sm:text-2xl text-deep-navy">Customer's premium quote</h2>
             </div>
-            <p className="text-mid-blue text-sm mb-5 sm:pl-10">Enter UNL's quoted monthly premium for the customer's state. Defaults below are GA-illustrative — if your quote matches, leave them. If not, type over.</p>
+            <p className="text-mid-blue text-sm mb-5 sm:pl-10">Enter UNL's quoted monthly premium for the customer's state. Defaults below show Georgia rates as illustration — your customer's state may differ. If the Advocate's quote matches, leave the default. If not, type over.</p>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {TIERS.map((t, idx) => (
@@ -463,7 +463,7 @@
                 <strong className="text-secondary">No reimbursement in Kentucky.</strong> HHC Shield is available in KY but the Rx benefit is excluded. Sell on coverage merit only — don't use this calculator for KY customers.
               </div>
               <div>
-                <strong className="text-secondary">Premiums vary slightly by state.</strong> The defaults shown in Step 2 are GA-illustrative. UNL's Advocate has the customer's exact monthly premium by zip — type that into Step 2 so the recommendation is accurate.
+                <strong className="text-secondary">Premiums vary slightly by state.</strong> The defaults shown in Step 2 are Georgia rates as illustration — your customer's state may differ. UNL's Advocate has the customer's exact monthly premium by zip — type that into Step 2 so the recommendation is accurate.
               </div>
               <div>
                 <strong className="text-secondary">How "best value" is calculated.</strong> Total HHC coverage benefit (e.g., $100K on Plan B) divided by net annual cost after Rx reimbursement. Higher ratio = more home healthcare protection per dollar the customer actually pays. This is usually a smarter recommendation than "lowest premium" — for heavier Rx fillers, the higher tier often costs only $1–5/yr more after reimbursement and provides $50K more in coverage.
@@ -487,12 +487,12 @@
               <a href="https://clearpathcoverage.com/unl-ancillary-sales-crash-course/" target="_top" rel="noopener"
                 className="bg-white/10 hover:bg-white/15 backdrop-blur rounded-xl p-4 border border-white/10 transition-colors block">
                 <div className="text-accent font-heading font-semibold mb-1">Crash Course</div>
-                <div className="text-white/80 text-sm">25-minute sales training, end to end</div>
+                <div className="text-white/80 text-sm">30-minute sales training, end to end</div>
               </a>
               <a href="https://clearpathcoverage.com/unl-academy/" target="_top" rel="noopener"
                 className="bg-white/10 hover:bg-white/15 backdrop-blur rounded-xl p-4 border border-white/10 transition-colors block">
-                <div className="text-accent font-heading font-semibold mb-1">Academy</div>
-                <div className="text-white/80 text-sm">Full training: pitch library, scenarios, Stat Bank</div>
+                <div className="text-accent font-heading font-semibold mb-1">Master Class</div>
+                <div className="text-white/80 text-sm">Four pillars, six annotated scripts, Capstone simulation + certification</div>
               </a>
             </div>
           </section>
@@ -513,7 +513,7 @@
           {/* Footer */}
           <footer className="text-center text-xs text-mid-blue space-y-2 py-6">
             <p className="max-w-2xl mx-auto leading-relaxed">
-              All figures shown are <strong className="text-secondary">customer-side</strong> — premium and reimbursement only. UNL premium rates are illustrative (GA-default unless overridden). Confirm exact premium with the UNL Advocate before quoting.
+              All figures shown are <strong className="text-secondary">customer-side</strong> — premium and reimbursement only. UNL premium rates default to Georgia for illustration unless overridden. Confirm the exact premium with the UNL Advocate before quoting.
             </p>
             <p className="text-soft-blue font-heading font-semibold tracking-wider uppercase text-[10px]">Clear Path Coverage · UNL Rx Reimbursement Calculator</p>
           </footer>
