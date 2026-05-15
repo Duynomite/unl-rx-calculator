@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UNL Rx Reimbursement Calculator — Clear Path Coverage</title>
+
+  <!--
+    UNL Rx Reimbursement Calculator — customer-side math tool.
+
+    SAFE-TO-SHARE: This tool calculates the CUSTOMER's net cost after the
+    Rx benefit. Contains no agent commission, agency spread, or any
+    agency-side compensation. Safe to screen-share with prospects.
+
+    FRAMING DIRECTIVE: The Rx benefit is REIMBURSEMENT, not "savings."
+    Every label and helper text must say "reimburses" or "pays you back",
+    not "saves you" or "reduces your cost." (Per Crash Course frame
+    discipline — misframing as savings sets up a refund call.)
+  -->
+
+  <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700;800&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-accent: #3DCEB2;
+      --color-secondary: #2D5A7A;
+      --color-text: #34252F;
+      --color-deep-navy: #10202C;
+      --color-light-cyan: #D8E6E3;
+      --color-mid-blue: #4B7797;
+      --color-soft-blue: #A7B8C5;
+      --font-heading: "Urbanist", sans-serif;
+      --font-body: "Jost", sans-serif;
+    }
+  </style>
+  <style>
+    body { font-family: "Jost", sans-serif; }
+    .tabular-nums { font-variant-numeric: tabular-nums; }
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    details > summary { list-style: none; cursor: pointer; }
+    details > summary::-webkit-details-marker { display: none; }
+    .chevron { transition: transform 0.2s ease; }
+    details[open] .chevron { transform: rotate(180deg); }
+    /* Slight pulse for the BEST FIT badge */
+    @keyframes softpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    .pulse-soft { animation: softpulse 2s ease-in-out infinite; }
+  </style>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-light-cyan/30 text-text font-body min-h-screen">
+  <noscript>
+    <div style="padding:2rem;font-family:sans-serif;max-width:600px;margin:2rem auto;border:1px solid #ccc;border-radius:8px;">
+      <h1>JavaScript required</h1>
+      <p>This tool requires JavaScript. Please enable it or contact CPC for help.</p>
+    </div>
+  </noscript>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo } = React;
+
+    // ============================================================================
+    // DATA — UNL Rx benefit rules + HHC plan tiers
+    // Source: UNL_Crash_Course.html Section 5, UNL_Ancillary_Academy.html RX_TIERS
+    // ============================================================================
+    const GENERIC_PER_FILL = 10;
+    const BRAND_PER_FILL = 25;
+
+    const TIERS = [
+      { id: 'A', label: 'Plan A', total: 50000, totalDisplay: '$50,000', daily: '$150/day', cap: 300, premiumAnnual: 365.76, premiumMonthly: 30.48, color: 'cyan' },
+      { id: 'B', label: 'Plan B', total: 100000, totalDisplay: '$100,000', daily: '$300/day', cap: 600, premiumAnnual: 640.20, premiumMonthly: 53.35, color: 'accent', mostCommon: true },
+      { id: 'C', label: 'Plan C', total: 150000, totalDisplay: '$150,000', daily: '$450/day', cap: 900, premiumAnnual: 941.40, premiumMonthly: 78.45, color: 'navy' },
+    ];
+
+    const PRESETS = [
+      { id: 'john',  label: 'John',  sub: '4 meds, monthly',    values: { gm: 3, gq: 0, bm: 1, bq: 0 } },
+      { id: 'mary',  label: 'Mary',  sub: '3 generics, monthly', values: { gm: 3, gq: 0, bm: 0, bq: 0 } },
+      { id: 'bruce', label: 'Bruce', sub: '10 meds, quarterly',  values: { gm: 0, gq: 5, bm: 0, bq: 5 } },
+    ];
+
+    // ============================================================================
+    // FORMATTERS
+    // ============================================================================
+    const fmt$ = (v) => '$' + (Math.round((v || 0) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmt$round = (v) => '$' + Math.round(v || 0).toLocaleString();
+
+    // ============================================================================
+    // COMPONENTS
+    // ============================================================================
+    function NumberStepper({ label, sub, value, onChange }) {
+      const dec = () => onChange(Math.max(0, value - 1));
+      const inc = () => onChange(Math.min(50, value + 1));
+      return (
+        <div className="flex items-center justify-between gap-3 bg-white border-2 border-light-cyan rounded-xl px-4 py-3 hover:border-accent/40 transition-colors">
+          <div className="flex-1 min-w-0">
+            <div className="font-heading font-semibold text-secondary text-sm sm:text-base">{label}</div>
+            <div className="text-xs text-mid-blue mt-0.5">{sub}</div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button type="button" onClick={dec} aria-label={`Decrease ${label}`}
+              className="w-10 h-10 rounded-lg border-2 border-light-cyan text-secondary font-heading font-bold text-xl hover:border-accent hover:bg-accent/10 active:bg-accent/20 transition-colors">−</button>
+            <input type="number" inputMode="numeric" min={0} max={50} value={value}
+              onChange={(e) => {
+                const n = parseInt(e.target.value, 10);
+                if (Number.isNaN(n)) onChange(0);
+                else onChange(Math.max(0, Math.min(50, n)));
+              }}
+              className="w-16 h-10 border-2 border-light-cyan rounded-lg px-2 text-center text-deep-navy font-heading font-bold text-lg tabular-nums focus:border-accent focus:outline-none"
+              aria-label={label} />
+            <button type="button" onClick={inc} aria-label={`Increase ${label}`}
+              className="w-10 h-10 rounded-lg border-2 border-light-cyan text-secondary font-heading font-bold text-xl hover:border-accent hover:bg-accent/10 active:bg-accent/20 transition-colors">+</button>
+          </div>
+        </div>
+      );
+    }
+
+    function TierCard({ tier, premium, reimbursement, netAnnual, netMonthly, capped, isBestFit, isBestValue, premiumOverridden }) {
+      const isAccent = tier.color === 'accent';
+      const isNavy = tier.color === 'navy';
+      const bg = isAccent ? 'bg-deep-navy text-white' : isNavy ? 'bg-secondary text-white' : 'bg-white border-2 border-light-cyan';
+      const labelColor = isAccent || isNavy ? 'text-accent' : 'text-secondary';
+      const mutedColor = isAccent || isNavy ? 'text-soft-blue' : 'text-mid-blue';
+      const divider = isAccent || isNavy ? 'border-white/15' : 'border-light-cyan';
+      const netHighlight = netAnnual <= 100 ? 'text-accent' : isAccent || isNavy ? 'text-white' : 'text-deep-navy';
+      return (
+        <div className={`${bg} rounded-2xl p-5 sm:p-6 relative`}>
+          {tier.mostCommon && !isBestFit && !isBestValue && (
+            <div className="absolute -top-3 left-5 bg-accent text-deep-navy text-xs font-heading font-bold uppercase tracking-wider px-2 py-1 rounded">Most common fit</div>
+          )}
+          {isBestFit && (
+            <div className="absolute -top-3 left-5 bg-accent text-deep-navy text-xs font-heading font-bold uppercase tracking-wider px-2 py-1 rounded pulse-soft">✓ Best fit · lowest cost</div>
+          )}
+          {!isBestFit && isBestValue && (
+            <div className="absolute -top-3 left-5 bg-white text-secondary text-xs font-heading font-bold uppercase tracking-wider px-2 py-1 rounded border-2 border-accent">★ Best value · most coverage per $</div>
+          )}
+
+          <div className="flex items-baseline justify-between mb-1">
+            <div className={`font-heading font-bold text-2xl ${isAccent || isNavy ? 'text-white' : 'text-deep-navy'}`}>{tier.label}</div>
+            <div className={`text-xs font-heading font-semibold uppercase tracking-wider ${labelColor}`}>{tier.totalDisplay}</div>
+          </div>
+          <div className={`text-xs ${mutedColor} mb-4`}>{tier.daily} home health · {fmt$round(tier.cap)}/yr Rx cap</div>
+
+          <div className={`pt-3 border-t ${divider} space-y-2 text-sm`}>
+            <div className="flex justify-between items-baseline">
+              <span className={mutedColor}>Premium</span>
+              <span className="font-heading font-semibold tabular-nums">{fmt$(premium.annual)}<span className={`text-xs ml-1 ${mutedColor}`}>/yr</span></span>
+            </div>
+            <div className="flex justify-between items-baseline">
+              <span className={mutedColor}>Rx reimbursement</span>
+              <span className="font-heading font-semibold text-accent tabular-nums">
+                −{fmt$(reimbursement)}
+                {capped && <span className={`text-xs ml-1 ${mutedColor}`}>(cap hit)</span>}
+              </span>
+            </div>
+          </div>
+
+          <div className={`mt-4 pt-4 border-t ${divider}`}>
+            <div className={`text-xs uppercase tracking-widest font-heading font-semibold ${labelColor} mb-1`}>Real annual net cost</div>
+            <div className={`font-heading font-bold text-3xl sm:text-4xl tabular-nums ${netHighlight}`}>
+              {netAnnual >= 0 ? fmt$(netAnnual) : <>−{fmt$(Math.abs(netAnnual))}</>}
+            </div>
+            <div className={`text-sm ${mutedColor} mt-1`}>
+              ≈ {fmt$(netMonthly)} / month
+            </div>
+            {premiumOverridden && (
+              <div className={`text-xs ${mutedColor} mt-2 italic`}>Custom premium applied</div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    function PresetButtons({ onLoad }) {
+      return (
+        <div>
+          <div className="text-xs uppercase font-heading font-semibold text-secondary tracking-wider mb-2">Quick personas (click to load)</div>
+          <div className="grid grid-cols-3 gap-2">
+            {PRESETS.map(p => (
+              <button key={p.id} type="button" onClick={() => onLoad(p.values)}
+                className="bg-white border-2 border-light-cyan rounded-xl px-3 py-3 text-left hover:border-accent hover:bg-accent/5 transition-colors">
+                <div className="font-heading font-semibold text-secondary text-sm">{p.label}</div>
+                <div className="text-xs text-mid-blue">{p.sub}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function CustomPremiums({ overrides, setOverrides }) {
+      return (
+        <details className="bg-white border-2 border-light-cyan rounded-xl overflow-hidden">
+          <summary className="px-5 py-4 flex items-center justify-between hover:bg-light-cyan/20 transition-colors">
+            <div>
+              <div className="font-heading font-semibold text-secondary">Custom premium overrides</div>
+              <div className="text-xs text-mid-blue mt-0.5">Use this if the customer's state has different premiums than the defaults shown</div>
+            </div>
+            <span className="chevron text-secondary text-xl">▼</span>
+          </summary>
+          <div className="px-5 pb-5 pt-2 border-t border-light-cyan space-y-3">
+            {TIERS.map((t, idx) => (
+              <div key={t.id} className="flex items-center justify-between gap-3">
+                <label className="font-heading font-semibold text-secondary text-sm flex-shrink-0 w-20">{t.label}</label>
+                <div className="text-xs text-mid-blue flex-1">Default: {fmt$(t.premiumAnnual)}/yr</div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <span className="text-secondary font-heading font-semibold">$</span>
+                  <input type="number" inputMode="decimal" placeholder={t.premiumAnnual.toFixed(2)}
+                    value={overrides[idx]}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const cleaned = v.replace(/[^0-9.]/g, '');
+                      const next = [...overrides];
+                      next[idx] = cleaned;
+                      setOverrides(next);
+                    }}
+                    className="w-24 h-9 border-2 border-light-cyan rounded-lg px-2 text-right text-deep-navy font-heading font-semibold tabular-nums focus:border-accent focus:outline-none" />
+                  <span className="text-xs text-mid-blue">/yr</span>
+                </div>
+              </div>
+            ))}
+            <button type="button" onClick={() => setOverrides(['', '', ''])}
+              className="text-xs text-secondary hover:text-accent underline">Reset to defaults</button>
+            <div className="text-xs text-mid-blue mt-2 leading-relaxed">UNL premium varies slightly by state. If the actual premium for this customer's state differs from the GA default, type it here and the math updates. Leave blank to use the default.</div>
+          </div>
+        </details>
+      );
+    }
+
+    function App() {
+      const [genMonthly, setGenMonthly] = useState(0);
+      const [genQuarterly, setGenQuarterly] = useState(0);
+      const [brandMonthly, setBrandMonthly] = useState(0);
+      const [brandQuarterly, setBrandQuarterly] = useState(0);
+      const [overrides, setOverrides] = useState(['', '', '']);
+
+      const totalMeds = genMonthly + genQuarterly + brandMonthly + brandQuarterly;
+      const hasInput = totalMeds > 0;
+
+      const genFillsAnnual = genMonthly * 12 + genQuarterly * 4;
+      const brandFillsAnnual = brandMonthly * 12 + brandQuarterly * 4;
+      const totalFillsAnnual = genFillsAnnual + brandFillsAnnual;
+      const genReimburse = genFillsAnnual * GENERIC_PER_FILL;
+      const brandReimburse = brandFillsAnnual * BRAND_PER_FILL;
+      const potentialAnnual = genReimburse + brandReimburse;
+
+      const tierResults = useMemo(() => TIERS.map((t, idx) => {
+        const overrideStr = overrides[idx];
+        const overrideNum = parseFloat(overrideStr);
+        const useOverride = !Number.isNaN(overrideNum) && overrideNum > 0;
+        const premiumAnnual = useOverride ? overrideNum : t.premiumAnnual;
+        const premiumMonthly = premiumAnnual / 12;
+        const reimbursement = Math.min(potentialAnnual, t.cap);
+        const netAnnual = premiumAnnual - reimbursement;
+        const netMonthly = netAnnual / 12;
+        const capped = potentialAnnual > t.cap;
+        const valueRatio = t.total / Math.max(netAnnual, 1);
+        return {
+          tier: t,
+          premium: { annual: premiumAnnual, monthly: premiumMonthly },
+          reimbursement,
+          netAnnual,
+          netMonthly,
+          capped,
+          valueRatio,
+          premiumOverridden: useOverride,
+        };
+      }), [potentialAnnual, overrides]);
+
+      const lowestNet = hasInput ? Math.min(...tierResults.map(r => r.netAnnual)) : null;
+      const highestValue = hasInput ? Math.max(...tierResults.map(r => r.valueRatio)) : null;
+      const bestFitId = hasInput ? [...tierResults].reverse().find(r => r.netAnnual === lowestNet)?.tier.id : null;
+      const bestValueId = hasInput ? [...tierResults].reverse().find(r => r.valueRatio === highestValue)?.tier.id : null;
+
+      const loadPreset = ({ gm, gq, bm, bq }) => {
+        setGenMonthly(gm);
+        setGenQuarterly(gq);
+        setBrandMonthly(bm);
+        setBrandQuarterly(bq);
+      };
+
+      const reset = () => {
+        setGenMonthly(0); setGenQuarterly(0); setBrandMonthly(0); setBrandQuarterly(0);
+        setOverrides(['', '', '']);
+      };
+
+      return (
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+
+          {/* Hero */}
+          <section className="bg-gradient-to-br from-secondary to-deep-navy text-white rounded-2xl p-6 sm:p-10 shadow-xl">
+            <div className="text-accent text-xs uppercase tracking-widest font-heading font-semibold mb-3">UNL HHC Shield · Customer math tool</div>
+            <h1 className="font-heading font-bold text-3xl sm:text-4xl lg:text-5xl leading-tight mb-3">
+              Rx Reimbursement Calculator.
+            </h1>
+            <p className="text-white/80 text-base sm:text-lg max-w-2xl leading-relaxed">
+              Plug in the customer's prescriptions to see how much UNL's Rx benefit reimburses each year — and what their real net cost is at each HHC plan tier. Built for on-call use. Safe to share with the customer.
+            </p>
+          </section>
+
+          {/* How it works (compact) */}
+          <section className="bg-accent/10 border-2 border-accent/40 rounded-2xl p-5 sm:p-6">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="text-xs uppercase font-heading font-semibold text-secondary tracking-widest">How the Rx benefit works:</span>
+            </div>
+            <div className="mt-2 text-sm text-text leading-relaxed">
+              UNL HHC reimburses <strong className="text-secondary">${GENERIC_PER_FILL} per generic fill</strong> and <strong className="text-secondary">${BRAND_PER_FILL} per brand fill</strong>, on every fill, up to your plan tier's annual cap. <strong className="text-secondary">It's reimbursement</strong> — you still pay the pharmacy whatever your plan charges (even $0), and UNL pays you back per fill, separately. Reimbursement is paid on fills, not on the medication count — a 90-day supply is one fill, not three.
+            </div>
+          </section>
+
+          {/* Inputs */}
+          <section className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-light-cyan">
+            <h2 className="font-heading font-bold text-xl sm:text-2xl text-deep-navy mb-1">Customer's prescriptions</h2>
+            <p className="text-mid-blue text-sm mb-5">Enter how many prescriptions they fill, by cadence. Cadence matters — a 90-day supply is one fill.</p>
+
+            <div className="grid sm:grid-cols-2 gap-3 mb-5">
+              <NumberStepper label="Generics — monthly fills" sub={`$${GENERIC_PER_FILL}/fill × 12 = $${GENERIC_PER_FILL * 12}/yr each`} value={genMonthly} onChange={setGenMonthly} />
+              <NumberStepper label="Generics — quarterly fills" sub={`$${GENERIC_PER_FILL}/fill × 4 = $${GENERIC_PER_FILL * 4}/yr each`} value={genQuarterly} onChange={setGenQuarterly} />
+              <NumberStepper label="Brand — monthly fills" sub={`$${BRAND_PER_FILL}/fill × 12 = $${BRAND_PER_FILL * 12}/yr each`} value={brandMonthly} onChange={setBrandMonthly} />
+              <NumberStepper label="Brand — quarterly fills" sub={`$${BRAND_PER_FILL}/fill × 4 = $${BRAND_PER_FILL * 4}/yr each`} value={brandQuarterly} onChange={setBrandQuarterly} />
+            </div>
+
+            <PresetButtons onLoad={loadPreset} />
+
+            {hasInput && (
+              <button type="button" onClick={reset}
+                className="mt-4 text-xs text-secondary hover:text-accent underline">Reset all</button>
+            )}
+          </section>
+
+          {/* Potential reimbursement summary */}
+          {hasInput && (
+            <section className="bg-deep-navy text-white rounded-2xl p-5 sm:p-8">
+              <div className="text-soft-blue text-xs uppercase font-heading font-semibold tracking-widest mb-2">Annual reimbursement potential</div>
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <div className="text-accent font-heading font-bold text-4xl sm:text-5xl tabular-nums">{fmt$round(potentialAnnual)}</div>
+                <div className="text-soft-blue text-sm">/ year before plan cap</div>
+              </div>
+              <div className="text-soft-blue text-sm mt-3 leading-relaxed">
+                {totalFillsAnnual} total fills/year · {genFillsAnnual > 0 && <>{genFillsAnnual} generic fills × ${GENERIC_PER_FILL} = {fmt$round(genReimburse)}</>}
+                {genFillsAnnual > 0 && brandFillsAnnual > 0 && <> · </>}
+                {brandFillsAnnual > 0 && <>{brandFillsAnnual} brand fills × ${BRAND_PER_FILL} = {fmt$round(brandReimburse)}</>}
+              </div>
+              <div className="text-soft-blue text-xs mt-3 italic">Each plan caps reimbursement at its annual maximum — see tiers below.</div>
+            </section>
+          )}
+
+          {/* Tier results */}
+          <section>
+            <div className="mb-4">
+              <h2 className="font-heading font-bold text-xl sm:text-2xl text-deep-navy mb-1">Real net cost by plan tier</h2>
+              <p className="text-mid-blue text-sm">Annual premium minus the reimbursement they'll actually receive at this prescription load.</p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-4 sm:gap-5 pt-3">
+              {tierResults.map(r => (
+                <TierCard key={r.tier.id} tier={r.tier}
+                  premium={r.premium}
+                  reimbursement={r.reimbursement}
+                  netAnnual={r.netAnnual}
+                  netMonthly={r.netMonthly}
+                  capped={r.capped}
+                  isBestFit={hasInput && bestFitId === r.tier.id}
+                  isBestValue={hasInput && bestValueId === r.tier.id && bestFitId !== r.tier.id}
+                  premiumOverridden={r.premiumOverridden} />
+              ))}
+            </div>
+
+            {!hasInput && (
+              <div className="mt-4 bg-light-cyan/40 border border-light-cyan rounded-xl p-4 text-sm text-mid-blue">
+                Enter prescriptions above to see the real net cost. Or click one of the personas to load an example.
+              </div>
+            )}
+          </section>
+
+          {/* Custom premiums */}
+          <CustomPremiums overrides={overrides} setOverrides={setOverrides} />
+
+          {/* Compliance + framing notes */}
+          <section className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-light-cyan space-y-4">
+            <h2 className="font-heading font-bold text-lg text-deep-navy">Important notes</h2>
+
+            <div className="space-y-3 text-sm text-text leading-relaxed">
+              <div>
+                <strong className="text-secondary">Reimbursement, not savings.</strong> UNL pays the customer per fill, regardless of what their pharmacy charges. A customer on $0-copay generics still receives the {fmt$round(GENERIC_PER_FILL)} per fill — that's pure-cash income separate from their pharmacy bill. Frame this as "reimbursement that offsets your premium," not "savings on your prescriptions."
+              </div>
+              <div>
+                <strong className="text-secondary">Cadence matters more than count.</strong> A medication on monthly refills generates 12 fills/year. The same medication on a 90-day supply generates only 4 fills/year. Always ask the customer "monthly or every 3 months?"
+              </div>
+              <div>
+                <strong className="text-secondary">No reimbursement in Kentucky.</strong> HHC Shield is available in KY but the Rx benefit is excluded. Sell on coverage merit only — don't use this calculator for KY customers.
+              </div>
+              <div>
+                <strong className="text-secondary">Premiums vary slightly by state.</strong> The defaults shown are GA-illustrative. If you're working a state with different premiums, use the custom-premium overrides above so the math is accurate for the customer's quote.
+              </div>
+              <div>
+                <strong className="text-secondary">If they fill 0–1 prescription per month, the math doesn't work in their favor.</strong> Either HHC fits on coverage merit alone (genuine home-care need + family burden) or it's a graceful-disqualification call. Don't oversell.
+              </div>
+            </div>
+          </section>
+
+          {/* Companion tools */}
+          <section className="bg-gradient-to-br from-secondary to-deep-navy text-white rounded-2xl p-6 sm:p-8">
+            <div className="text-accent text-xs uppercase tracking-widest font-heading font-semibold mb-3">Companion tools for CPC agents</div>
+            <h2 className="font-heading font-bold text-xl sm:text-2xl mb-4">Where this fits in your toolkit</h2>
+            <div className="grid sm:grid-cols-3 gap-3">
+              <a href="https://duynomite.github.io/unl-comp-model/" target="_blank" rel="noopener"
+                className="bg-white/10 hover:bg-white/15 backdrop-blur rounded-xl p-4 border border-white/10 transition-colors block">
+                <div className="text-accent font-heading font-semibold mb-1">Comp Model</div>
+                <div className="text-white/80 text-sm">What you earn per sale, per year, per career</div>
+              </a>
+              <a href="https://duynomite.github.io/unl-crash-course/" target="_blank" rel="noopener"
+                className="bg-white/10 hover:bg-white/15 backdrop-blur rounded-xl p-4 border border-white/10 transition-colors block">
+                <div className="text-accent font-heading font-semibold mb-1">Crash Course</div>
+                <div className="text-white/80 text-sm">25-minute sales training, end to end</div>
+              </a>
+              <a href="https://duynomite.github.io/unl-academy/" target="_blank" rel="noopener"
+                className="bg-white/10 hover:bg-white/15 backdrop-blur rounded-xl p-4 border border-white/10 transition-colors block">
+                <div className="text-accent font-heading font-semibold mb-1">Academy</div>
+                <div className="text-white/80 text-sm">Full training: pitch library, scenarios, Stat Bank</div>
+              </a>
+            </div>
+          </section>
+
+          {/* Footer */}
+          <footer className="text-center text-xs text-mid-blue space-y-2 py-6">
+            <p className="max-w-2xl mx-auto leading-relaxed">
+              All figures shown are <strong className="text-secondary">customer-side</strong> — premium and reimbursement only. UNL premium rates are illustrative (GA-default unless overridden). Confirm exact premium with the UNL Advocate before quoting.
+            </p>
+            <p className="text-soft-blue font-heading font-semibold tracking-wider uppercase text-[10px]">Clear Path Coverage · UNL Rx Reimbursement Calculator</p>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
