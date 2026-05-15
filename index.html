@@ -53,6 +53,44 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body class="bg-light-cyan/30 text-text font-body min-h-screen">
+
+  <!-- ============ UNL JOURNEY BREADCRUMB ============ -->
+  <style>
+    .unl-journey-bar { background: #10202C; color: white; font-family: "Urbanist", sans-serif; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    .unl-journey-inner { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.5rem 1.25rem; max-width: 80rem; margin: 0 auto; }
+    .unl-journey-step { display: inline-flex; align-items: center; gap: 0.4rem; color: rgba(255,255,255,0.5); text-decoration: none; padding: 0.2rem 0.5rem; border-radius: 4px; transition: color 0.15s, background 0.15s; }
+    .unl-journey-step:hover { color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.05); }
+    .unl-journey-step.is-active { color: #3DCEB2; background: rgba(61,206,178,0.1); font-weight: 700; }
+    .unl-journey-step-num { font-family: "Urbanist", sans-serif; font-weight: 700; opacity: 0.6; }
+    .unl-journey-step.is-active .unl-journey-step-num { opacity: 1; }
+    .unl-journey-sep { color: rgba(255,255,255,0.3); }
+    @media (max-width: 640px) { .unl-journey-inner { padding: 0.45rem 1rem; font-size: 0.6rem; } }
+    @media print { .unl-journey-bar { display: none !important; } }
+  </style>
+  <div class="unl-journey-bar">
+    <div class="unl-journey-inner">
+      <a href="https://duynomite.github.io/unl-crash-course/" target="_blank" rel="noopener" class="unl-journey-step">
+        <span class="unl-journey-step-num">1.</span>
+        <span>Crash Course</span>
+      </a>
+      <span class="unl-journey-sep">›</span>
+      <a href="https://duynomite.github.io/unl-comp-model/" target="_blank" rel="noopener" class="unl-journey-step">
+        <span class="unl-journey-step-num">2.</span>
+        <span>Comp Model</span>
+      </a>
+      <span class="unl-journey-sep">›</span>
+      <span class="unl-journey-step is-active">
+        <span class="unl-journey-step-num">3.</span>
+        <span>Rx Calculator</span>
+      </span>
+      <span class="unl-journey-sep">›</span>
+      <a href="https://duynomite.github.io/unl-academy/" target="_blank" rel="noopener" class="unl-journey-step">
+        <span class="unl-journey-step-num">4.</span>
+        <span>Master Class</span>
+      </a>
+    </div>
+  </div>
+
   <noscript>
     <div style="padding:2rem;font-family:sans-serif;max-width:600px;margin:2rem auto;border:1px solid #ccc;border-radius:8px;">
       <h1>JavaScript required</h1>
